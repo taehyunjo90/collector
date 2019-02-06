@@ -8,6 +8,7 @@ from selenium.common import exceptions
 from selenium.webdriver.common.action_chains import ActionChains
 
 import pandas as pd
+import numpy as np
 import time
 
 import CONFIG
@@ -15,6 +16,7 @@ from Util.Logger import myLogger
 
 WAIT_SECS = 5
 MAX_TRY = 5
+SHORT_WAIT_SECS = 1
 
 logger = myLogger("Collector")
 
@@ -22,7 +24,7 @@ class Collector(object):
     def __init__(self):
         # Variables
         self.bool_popup_cleared = False
-        self.driver = webdriver.Chrome(executable_path="../Driver/chromedriver.exe")
+        self.driver = webdriver.Chrome(executable_path="Driver/chromedriver.exe")
         self.accessInitPage()
 
     def clickPopUpQuit(self, wait_secs):
@@ -144,6 +146,7 @@ class Collector(object):
 
     def getEachStockInitPageGetInfoTable(self):
         table_info = self.driver.find_element_by_class_name("overviewDataTable").text.split("\n")
+
         columns = []
         contents = []
         for i, ele in enumerate(table_info):
@@ -151,7 +154,14 @@ class Collector(object):
                 columns.append(ele)
             else:
                 contents.append(ele)
-        df_basic_info = pd.DataFrame(contents, index=columns)
+
+        list_multi = []
+        for col in columns:
+            list_multi.append(("Basic", col))
+
+        index = pd.MultiIndex.from_tuples(list_multi)
+
+        df_basic_info = pd.DataFrame(contents, index=index)
         df_basic_info = df_basic_info.T
 
         logger.logger.debug("Get initial info succesfully.")
@@ -178,36 +188,113 @@ class Collector(object):
         except:
             logger.logger.debug("Get " + option + " page Failed.")
 
-    def getFinancialReports(self):
+    def getFinancialReports(self, option):
         table_info = self.driver.find_element_by_id("rrtable").text.split("\n")
+
+        if option == "Year":
+            tag = "Y"
+        elif option == "Quater":
+            tag = "Q"
 
         index = []
         columns = []
         contents = []
 
+        count = 0
         for i, ele in enumerate(table_info):
             if i == 0:
-                year = ele.split(" ")[-1]
-            #         start_index = "_".join(ele.split(" ")[:2])
-            #         index.append(start_index)
+                pass
+                # year = ele.split(" ")[-1]
             elif i < 8:
                 if i % 2 == 1:
-                    date = ele
-                    columns.append(year + " " + date)
-                else:
-                    year = ele
+                    count += 1
+                    columns.append(tag + "-" + str(count))
             else:
                 eles = ele.split(" ")
                 contents.append(eles[-4:])
                 index.append(" ".join(eles[:-4]))
 
-        print(pd.DataFrame(contents, index=index, columns=columns))
+        df = pd.DataFrame(contents, index=index, columns=columns)
+        df = self.toOneArrayDF(df)
+
+        logger.logger.debug("Get " + option + " dataframe succesfully.")
+
+        return df
+
+    def clickAnnualButton(self):
+        self.driver.find_element_by_xpath(
+            "//div[@class='float_lang_base_1']/a[@class='newBtn toggleButton LightGray']").click()
+
+        try:
+            table = WebDriverWait(self.driver, WAIT_SECS) \
+                .until(EC.presence_of_element_located((By.ID, "rrtable")))
+            logger.logger.debug("Get annual page successfully.")
+        except:
+            logger.logger.debug("Get annual page failed.")
+
+        time.sleep(SHORT_WAIT_SECS)
+
+    def toOneArrayDF(self, df):
+        list_multi = []
+
+        for i, col in enumerate(df.columns):
+            if i == 0:
+                data = df.loc[:, col].values
+            else:
+                data = np.append(data, df.loc[:, col].values)
+            for idx in df.index:
+                list_multi.append((col, idx))
+
+        multi_index = pd.MultiIndex.from_tuples(list_multi)
+        df_one_arrayed = pd.DataFrame(index=multi_index)
+        df_one_arrayed.loc[:, 0] = data
+        df_one_arrayed = df_one_arrayed.T
+        return df_one_arrayed
+
+    def clickAnotherFinancialReport(self, option):
+        if option == "BS":
+            select = "Balance Sheet"
+        elif option == "IS":
+            select = "Income Statement"
+        elif option == "CFS":
+            select = "Cash Flow"
+        self.driver.find_element_by_link_text(select).click()
+
+        try:
+            table = WebDriverWait(self.driver, WAIT_SECS) \
+                .until(EC.presence_of_element_located((By.ID, "rrtable")))
+            logger.logger.debug("Move to " + option + " successfully.")
+        except:
+            logger.logger.debug("Move to " + option + " failed.")
+
+    def getEachStockOneArrayDF(self, initURL):
+
+        self.goEachStockInitPage(initURL)
+        df = self.getEachStockInitPageGetInfoTable()
+
+        self.goToFinancialReports("BS")
+
+        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        self.clickAnnualButton()
+        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
+
+        self.clickAnotherFinancialReport("IS")
+
+        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        self.clickAnnualButton()
+        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
+
+        self.clickAnotherFinancialReport("CFS")
+
+        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        self.clickAnnualButton()
+        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
 
 
+
+
+
+        return df
 if __name__ == "__main__":
-    collector = Collector()
-    collector.goEachStockInitPage("toyota-motor-corporation?cid=44137")
-    collector.getEachStockInitPageGetInfoTable()
-    collector.goToFinancialReports("IS")
-    collector.getFinancialReports()
-
+    self = Collector()
+    self.getWholeFinancialReportsOneArray("toyota-motor-corporation?cid=44137")
