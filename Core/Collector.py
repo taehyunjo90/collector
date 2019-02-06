@@ -201,7 +201,7 @@ class Collector(object):
                 contents.append(eles[-4:])
                 index.append(" ".join(eles[:-4]))
 
-        pd.DataFrame(contents, index=index, columns=columns)
+        print(pd.DataFrame(contents, index=index, columns=columns))
 
 
 if __name__ == "__main__":
@@ -209,7 +209,5 @@ if __name__ == "__main__":
     collector.goEachStockInitPage("toyota-motor-corporation?cid=44137")
     collector.getEachStockInitPageGetInfoTable()
     collector.goToFinancialReports("IS")
-    collector.driver.quit()
-
-
+    collector.getFinancialReports()
 
