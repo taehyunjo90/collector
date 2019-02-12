@@ -290,11 +290,6 @@ class Collector(object):
         self.clickAnnualButton()
         df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
 
-
-
-
-
         return df
-if __name__ == "__main__":
-    self = Collector()
-    self.getWholeFinancialReportsOneArray("toyota-motor-corporation?cid=44137")
+
+
