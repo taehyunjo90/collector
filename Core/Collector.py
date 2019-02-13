@@ -188,13 +188,13 @@ class Collector(object):
         except:
             logger.logger.debug("Get " + option + " page Failed.")
 
-    def getFinancialReports(self, option):
+    def getFinancialReports(self, option, FR_type):
         table_info = self.driver.find_element_by_id("rrtable").text.split("\n")
 
         if option == "Year":
-            tag = "Y"
+            tag = FR_type + "/Y"
         elif option == "Quater":
-            tag = "Q"
+            tag = FR_type + "/Q"
 
         index = []
         columns = []
@@ -274,21 +274,21 @@ class Collector(object):
 
         self.goToFinancialReports("BS")
 
-        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Quater", "BS")], axis=1)
         self.clickAnnualButton()
-        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Year", "BS")], axis=1)
 
         self.clickAnotherFinancialReport("IS")
 
-        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Quater", "IS")], axis=1)
         self.clickAnnualButton()
-        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Year", "IS")], axis=1)
 
         self.clickAnotherFinancialReport("CFS")
 
-        df = pd.concat([df, self.getFinancialReports("Quater")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Quater","CFS")], axis=1)
         self.clickAnnualButton()
-        df = pd.concat([df, self.getFinancialReports("Year")], axis=1)
+        df = pd.concat([df, self.getFinancialReports("Year","CFS")], axis=1)
 
         return df
 
