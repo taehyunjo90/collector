@@ -215,6 +215,7 @@ class Collector(object):
                 index.append(" ".join(eles[:-4]))
 
         df = pd.DataFrame(contents, index=index, columns=columns)
+        df = df.iloc[1:,:]
         df = self.toOneArrayDF(df)
 
         logger.logger.debug("Get " + option + " dataframe succesfully.")
@@ -291,5 +292,49 @@ class Collector(object):
         df = pd.concat([df, self.getFinancialReports("Year","CFS")], axis=1)
 
         return df
+
+    def crawlingStart(self, df_screener):
+
+        # Screener Columns
+        cols = ['Company Name', 'URL', 'Code', 'Market', 'Industry', 'Sub-Industry', 'Price', 'Chg', 'Cap', 'Vol']
+        list_multiindex = []
+        for col in cols:
+            list_multiindex.append(("Screener", col))
+        columns = pd.MultiIndex.from_tuples(list_multiindex)
+
+        for i, r in df_screener.iterrows():
+            tmp_result = self.getEachStockOneArrayDF(r[1]) # Financial Reports -> One lined dataframe
+
+            df_tmp = pd.DataFrame(r).T # make screener data to one line
+            df_tmp.columns = columns
+            df_tmp.index = [0]
+
+            df = pd.concat([df_tmp, tmp_result], axis=1) # concat screener data and financial reports data
+
+            length_df = len(df.columns)
+
+            if length_df > 713: # Not a bank
+                try:
+                    df_total_not_bank = self.mergeDFs(df_total_not_bank, df)
+                except:
+                    df_total_not_bank = df
+            else:
+                try:
+                    df_total_bank = self.mergeDFs(df_total_bank, df)
+                except:
+                    df_total_bank = df
+
+        return df_total_not_bank, df_total_bank
+
+
+    def mergeDFs(self, df_total, df_new):
+        # total_df은 index에 계정이 들어가 있음
+        len_total_df = len(df_total.index)
+        len_new_df = len(df_new.columns)
+        if len_total_df > len_new_df:
+            ret = pd.merge(df_total, df_new.T, left_index=True, right_index=True, how='left')
+        else:
+            ret = pd.merge(df_new.T, df_total, left_index=True, right_index=True, how='left')
+        return ret
 
 
