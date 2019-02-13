@@ -130,7 +130,7 @@ class Collector(object):
         self.selectCountry(country)
         end_page = self.getHowManyPages()
         df_total_stock_info = self.getStocksBasicInfoByRange(1, end_page)
-        df_total_stock_info.to_csv("test.csv")
+        # df_total_stock_info.to_csv("test.csv")
         return df_total_stock_info
 
     def goEachStockInitPage(self, url):
