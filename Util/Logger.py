@@ -1,6 +1,6 @@
 import logging
 
-LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.INFO
 
 class myLogger():
     def __init__(self, name):

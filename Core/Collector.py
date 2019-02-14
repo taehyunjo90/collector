@@ -10,13 +10,15 @@ from selenium.webdriver.common.action_chains import ActionChains
 import pandas as pd
 import numpy as np
 import time
+import datetime
 
 import CONFIG
 from Util.Logger import myLogger
 
 WAIT_SECS = 5
-MAX_TRY = 5
 SHORT_WAIT_SECS = 1
+
+NON_BANK_FIANANCIAL_REPORTS_LENGTH = 713
 
 logger = myLogger("Collector")
 
@@ -38,9 +40,10 @@ class Collector(object):
                 .until(EC.element_to_be_clickable((By.CLASS_NAME, "popupCloseIcon")))
             popup_quit_button.click()
         except:
+            logger.logger.info("Popup clear failed.")
             return
 
-        print("Popup cleared.")
+        logger.logger.info("Popup cleared.")
         self.bool_popup_cleared = True
 
     def accessInitPage(self):
@@ -97,7 +100,7 @@ class Collector(object):
 
     def getStocksBasicInfoByRange(self, start, end):
         for idx, page in enumerate(range(start, end+1)):
-            logger.logger.info("Get basic info of stocks :: Doing " + str(page) + " / " + str(end) + " ...")
+            logger.logger.info("Get screener pages :: Doing " + str(page) + " / " + str(end) + " page...")
             if idx == 0:
                 df_total_stock_info = self.getStocksBasicInfoByOnePage(page)
             else:
@@ -302,39 +305,73 @@ class Collector(object):
             list_multiindex.append(("Screener", col))
         columns = pd.MultiIndex.from_tuples(list_multiindex)
 
-        for i, r in df_screener.iterrows():
-            tmp_result = self.getEachStockOneArrayDF(r[1]) # Financial Reports -> One lined dataframe
+        # for i, r in df_screener.iterrows():
+
+        len_df_screener = len(df_screener.index)
+
+        df_total_not_bank = None
+        df_total_bank = None
+
+        i = 0
+        while True:
+
+            logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
+            r = df_screener.iloc[i, :]
+
+            # 팝업창이 등장하면 팝업창을 클릭해주는 예외처리
+            try:
+                tmp_result = self.getEachStockOneArrayDF(r[1]) # Financial Reports -> One lined dataframe
+            except exceptions.WebDriverException:
+                logger.logger.info("Pop-up Error occured :: Try to click Pop-up.")
+                self.clickPopUpQuit(WAIT_SECS)
+                logger.logger.info("Retry started...")
+                continue
 
             df_tmp = pd.DataFrame(r).T # make screener data to one line
             df_tmp.columns = columns
             df_tmp.index = [0]
-
             df = pd.concat([df_tmp, tmp_result], axis=1) # concat screener data and financial reports data
 
             length_df = len(df.columns)
-
-            if length_df > 713: # Not a bank
-                try:
-                    df_total_not_bank = self.mergeDFs(df_total_not_bank, df)
-                except:
+            if length_df > NON_BANK_FIANANCIAL_REPORTS_LENGTH: # Not a bank
+                if df_total_not_bank is None:
                     df_total_not_bank = df
+                else:
+                    df_total_not_bank = self.mergeDFs(df_total_not_bank, df)
             else:
-                try:
-                    df_total_bank = self.mergeDFs(df_total_bank, df)
-                except:
+                if df_total_bank is None:
                     df_total_bank = df
+                else:
+                    df_total_bank = self.mergeDFs(df_total_bank, df)
+
+            i += 1
+            # df길이에 i가 도달하면 break (전체 완료 하였음)
+            if i == len_df_screener:
+                break
+
+        if df_total_not_bank is not None:
+            df_total_not_bank.reset_index(drop=True, inplace=True)
+        if df_total_bank is not None:
+            df_total_bank.reset_index(drop=True, inplace=True)
 
         return df_total_not_bank, df_total_bank
 
+    def saveFiles(self, country, df, type):
+        today = datetime.datetime.today().strftime('%Y-%m-%d')
+        if df is not None:
+            df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + today + "_" + type + ".csv")
+            logger.logger.info("Save :: " + country + " " + type + " is successfully saved.")
+        elif df is None:
+            return
 
     def mergeDFs(self, df_total, df_new):
         # total_df은 index에 계정이 들어가 있음
-        len_total_df = len(df_total.index)
+        len_total_df = len(df_total.columns)
         len_new_df = len(df_new.columns)
-        if len_total_df > len_new_df:
-            ret = pd.merge(df_total, df_new.T, left_index=True, right_index=True, how='left')
+        if len_total_df >= len_new_df:
+            ret = pd.merge(df_total.T, df_new.T, left_index=True, right_index=True, how='left')
         else:
-            ret = pd.merge(df_new.T, df_total, left_index=True, right_index=True, how='left')
-        return ret
+            ret = pd.merge(df_new.T, df_total.T, left_index=True, right_index=True, how='left')
+        return ret.T
 
 
