@@ -18,7 +18,7 @@ from Util.Logger import myLogger
 WAIT_SECS = 5
 SHORT_WAIT_SECS = 1
 
-NON_BANK_FIANANCIAL_REPORTS_LENGTH = 713
+NON_BANK_FIANANCIAL_REPORTS_LENGTH = 753
 
 logger = myLogger("Collector")
 
@@ -225,7 +225,7 @@ class Collector(object):
         df = pd.DataFrame(contents, index=index, columns=columns)
 
         if FR_type == "CFS":
-            df = df.iloc[1:,:]
+            df = pd.concat([df.iloc[:1,:], df.iloc[2:,:]])
         else:
             pass
 
@@ -336,6 +336,9 @@ class Collector(object):
                 self.clickPopUpQuit(WAIT_SECS)
                 logger.logger.info("Retry started...")
                 continue
+            # 에러 발생시 다시 진행
+            except:
+                continue
 
             df_tmp = pd.DataFrame(r).T # make screener data to one line
             df_tmp.columns = columns
@@ -343,6 +346,7 @@ class Collector(object):
             df = pd.concat([df_tmp, tmp_result], axis=1) # concat screener data and financial reports data
 
             length_df = len(df.columns)
+            # print(length_df)
             if length_df > NON_BANK_FIANANCIAL_REPORTS_LENGTH: # Not a bank
                 if df_total_not_bank is None:
                     df_total_not_bank = df
