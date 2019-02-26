@@ -40,7 +40,6 @@ class Collector(object):
                 .until(EC.element_to_be_clickable((By.CLASS_NAME, "popupCloseIcon")))
             popup_quit_button.click()
         except:
-            logger.logger.info("Popup clear failed.")
             return
 
         logger.logger.info("Popup cleared.")
@@ -72,7 +71,7 @@ class Collector(object):
     def getStocksBasicInfoByOnePage(self, page):
         self.driver.get(self.page_url + str(page))
 
-        time.sleep(WAIT_SECS) # fix it to wait dynamic style.
+        time.sleep(WAIT_SECS) # FIX :: fix it to wait dynamic style.
 
         pagesource = self.driver.page_source
         souped_ps = BeautifulSoup(pagesource, 'lxml')
@@ -101,6 +100,7 @@ class Collector(object):
     def getStocksBasicInfoByRange(self, start, end):
         for idx, page in enumerate(range(start, end+1)):
             logger.logger.info("Get screener pages :: Doing " + str(page) + " / " + str(end) + " page...")
+            self.clickPopUpQuit(SHORT_WAIT_SECS)
             if idx == 0:
                 df_total_stock_info = self.getStocksBasicInfoByOnePage(page)
             else:
@@ -206,19 +206,29 @@ class Collector(object):
         count = 0
         for i, ele in enumerate(table_info):
             if i == 0:
-                pass
-                # year = ele.split(" ")[-1]
+                list_year_quater = []
+                year = ele.split(":")[-1]
             elif i < 8:
                 if i % 2 == 1:
                     count += 1
                     columns.append(tag + "-" + str(count))
+                    year_quater = year + "/" + ele
+                    list_year_quater.append(year_quater)
+                    if i == 7:
+                        contents = contents + list_year_quater
+                        index = index + ["YYYY/DD/MM"]
             else:
                 eles = ele.split(" ")
                 contents.append(eles[-4:])
                 index.append(" ".join(eles[:-4]))
 
         df = pd.DataFrame(contents, index=index, columns=columns)
-        df = df.iloc[1:,:]
+
+        if FR_type == "CFS":
+            df = df.iloc[1:,:]
+        else:
+            pass
+
         df = self.toOneArrayDF(df)
 
         logger.logger.debug("Get " + option + " dataframe succesfully.")
