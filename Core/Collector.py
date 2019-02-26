@@ -215,7 +215,7 @@ class Collector(object):
                     year_quater = year + "/" + ele
                     list_year_quater.append(year_quater)
                     if i == 7:
-                        contents = contents + list_year_quater
+                        contents.append(list_year_quater)
                         index = index + ["YYYY/DD/MM"]
             else:
                 eles = ele.split(" ")
