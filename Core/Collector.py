@@ -61,12 +61,17 @@ class Collector(object):
         # click the country to select
         ele_countries = self.driver.find_element_by_id("countriesUL").find_elements_by_tag_name("li")
 
+        isClicked = False
         for ele in ele_countries:
             if ele.text == country:
                 ele.click()
+                isClicked = True
                 break
 
-        logger.logger.info("Click the country successfully :: " + country)
+        if isClicked:
+            logger.logger.info("Click the country successfully :: " + country)
+        else:
+            raise Exception("Not proper country entered. Recheck country name.")
 
     def getStocksBasicInfoByOnePage(self, page):
         self.driver.get(self.page_url + str(page))
@@ -97,7 +102,7 @@ class Collector(object):
         logger.logger.debug("Get " + str(page) + " successfully.")
         return df_result
 
-    def getStocksBasicInfoByRange(self, start, end):
+    def getStocksBasicInfoByRange(self, start, end, country):
         for idx, page in enumerate(range(start, end+1)):
             logger.logger.info("Get screener pages :: Doing " + str(page) + " / " + str(end) + " page...")
             self.clickPopUpQuit(SHORT_WAIT_SECS)
@@ -105,9 +110,18 @@ class Collector(object):
                 df_total_stock_info = self.getStocksBasicInfoByOnePage(page)
             else:
                 df_total_stock_info = pd.concat([df_total_stock_info, self.getStocksBasicInfoByOnePage(page)])
-
         df_total_stock_info.reset_index(inplace=True, drop=True)
-        return df_total_stock_info
+
+        # Screener Columns
+        cols = ['Company Name', 'URL', 'Code', 'Market', 'Industry',\
+                'Sub-Industry', 'Price', 'Chg', 'Cap', 'Vol', 'Done']
+        list_multiindex = []
+        for col in cols:
+            list_multiindex.append(("Screener", col))
+        columns = pd.MultiIndex.from_tuples(list_multiindex)
+        df_total_stock_info.loc[:,'Done'] = False
+        df_total_stock_info.columns = columns
+        self.saveFile(country, df_total_stock_info, "Screener")
 
     def getHowManyPages(self):
 
@@ -306,27 +320,37 @@ class Collector(object):
 
         return df
 
-    def crawlingStart(self, df_screener):
+    def crawlingStart(self, country):
+
+        # read screener
+        df_screener = self.readFile(country, "Screener")
 
         # Screener Columns
-        cols = ['Company Name', 'URL', 'Code', 'Market', 'Industry', 'Sub-Industry', 'Price', 'Chg', 'Cap', 'Vol']
+        cols = ['Company Name', 'URL', 'Code', 'Market', 'Industry', \
+                'Sub-Industry', 'Price', 'Chg', 'Cap', 'Vol']
         list_multiindex = []
         for col in cols:
             list_multiindex.append(("Screener", col))
         columns = pd.MultiIndex.from_tuples(list_multiindex)
 
-        # for i, r in df_screener.iterrows():
-
         len_df_screener = len(df_screener.index)
 
-        df_total_not_bank = None
-        df_total_bank = None
+        df_total_not_bank = self.readFile(country, "NonFinancial")
+        df_total_bank = self.readFile(country, "Financial")
 
         i = 0
         while True:
 
-            logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
+            ### 여기서부터 코딩해야함 ###
             r = df_screener.iloc[i, :]
+            if r[-1] == True:
+                i += 1
+                continue
+
+            logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
+
+
+
 
             # 팝업창이 등장하면 팝업창을 클릭해주는 예외처리
             try:
@@ -340,7 +364,7 @@ class Collector(object):
             except:
                 continue
 
-            df_tmp = pd.DataFrame(r).T # make screener data to one line
+            df_tmp = pd.DataFrame(r[:-1]).T # make screener data to one line
             df_tmp.columns = columns
             df_tmp.index = [0]
             df = pd.concat([df_tmp, tmp_result], axis=1) # concat screener data and financial reports data
@@ -358,25 +382,49 @@ class Collector(object):
                 else:
                     df_total_bank = self.mergeDFs(df_total_bank, df)
 
+
             i += 1
             # df길이에 i가 도달하면 break (전체 완료 하였음)
+
             if i == len_df_screener:
                 break
+            else:
+                if i % CONFIG.SAVE_LENGTH == 0:
+                    df_screener.iloc[:i, -1] = True
+                    self.saveFile(country, df_screener, "Screener")
 
-        if df_total_not_bank is not None:
-            df_total_not_bank.reset_index(drop=True, inplace=True)
-        if df_total_bank is not None:
-            df_total_bank.reset_index(drop=True, inplace=True)
+                    if df_total_not_bank is not None:
+                        df_total_not_bank.reset_index(drop=True, inplace=True)
+                        self.saveFile(country, df_total_not_bank, "NonFinancial")
 
-        return df_total_not_bank, df_total_bank
+                    if df_total_bank is not None:
+                        df_total_bank.reset_index(drop=True, inplace=True)
+                        self.saveFile(country, df_total_bank, "Financial")
 
-    def saveFiles(self, country, df, type):
-        today = datetime.datetime.today().strftime('%Y-%m-%d')
+
+    def saveFile(self, country, df, type):
+        date = datetime.datetime.today().strftime('%Y-%m-%d')
         if df is not None:
-            df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + today + "_" + type + ".csv")
+            df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + date + "_" + type + ".csv")
             logger.logger.info("Save :: " + country + " " + type + " is successfully saved.")
         elif df is None:
             return
+
+    def readFile(self, country, type):
+        date = datetime.datetime.today().strftime('%Y-%m-%d')
+
+        try:
+            df = pd.read_csv(CONFIG.PATH['SAVE'] + country + "_" + date + "_" + type + ".csv", \
+                             header=[0,1], index_col=0)
+            logger.logger.info("Read :: " + country + " " + type + " is successfully readed.")
+        except FileNotFoundError:
+            logger.logger.info("Read :: There is no " + country + " " + type)
+            df = None
+        except:
+            logger.logger.info("Read :: " + country + " " + type + " failed")
+            raise Exception("Reading a file error.")
+
+        return df
 
     def mergeDFs(self, df_total, df_new):
         # total_df은 index에 계정이 들어가 있음

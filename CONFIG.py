@@ -6,3 +6,5 @@ URL = {
 PATH = {
     'SAVE' : ''
 }
+
+SAVE_LENGTH = 50
