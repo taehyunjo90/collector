@@ -18,7 +18,9 @@ from Util.Logger import myLogger
 WAIT_SECS = 5
 SHORT_WAIT_SECS = 1
 
+
 NON_BANK_FIANANCIAL_REPORTS_LENGTH = 753
+MAX_NOELEMENT_COUNT = 5
 
 logger = myLogger("Collector")
 
@@ -339,6 +341,7 @@ class Collector(object):
         df_total_bank = self.readFile(country, "Financial")
 
         i = 0
+        count_noelement = 0
         while True:
 
             ### 여기서부터 코딩해야함 ###
@@ -349,12 +352,18 @@ class Collector(object):
 
             logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
 
-
-
-
             # 팝업창이 등장하면 팝업창을 클릭해주는 예외처리
             try:
                 tmp_result = self.getEachStockOneArrayDF(r[1]) # Financial Reports -> One lined dataframe
+            except exceptions.NoSuchElementException:
+                count_noelement += 1
+                logger.logger.info("There is no elements. Count :: {}".format(str(count_noelement)))
+                if count_noelement == MAX_NOELEMENT_COUNT:
+                    i += 1
+                    count_noelement = 0
+                    continue
+                else:
+                    continue
             except exceptions.WebDriverException:
                 logger.logger.info("Pop-up Error occured :: Try to click Pop-up.")
                 self.clickPopUpQuit(WAIT_SECS)
@@ -403,19 +412,19 @@ class Collector(object):
 
 
     def saveFile(self, country, df, type):
-        date = datetime.datetime.today().strftime('%Y-%m-%d')
+        # date = datetime.datetime.today().strftime('%Y-%m-%d')
         if df is not None:
-            df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + date + "_" + type + ".csv")
+            df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + type + ".csv")
             logger.logger.info("Save :: " + country + " " + type + " is successfully saved.")
         elif df is None:
             return
 
     def readFile(self, country, type):
-        date = datetime.datetime.today().strftime('%Y-%m-%d')
+        # date = datetime.datetime.today().strftime('%Y-%m-%d')
 
         try:
-            df = pd.read_csv(CONFIG.PATH['SAVE'] + country + "_" + date + "_" + type + ".csv", \
-                             header=[0,1], index_col=0)
+            df = pd.read_csv(CONFIG.PATH['SAVE'] + country + "_" + type + ".csv", \
+                             header=[0,1], index_col=0, encoding='cp949')
             logger.logger.info("Read :: " + country + " " + type + " is successfully readed.")
         except FileNotFoundError:
             logger.logger.info("Read :: There is no " + country + " " + type)

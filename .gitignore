@@ -3,3 +3,5 @@
 *.ipynb
 __pycache__/
 *.csv
+*.log
+CONFIG.py

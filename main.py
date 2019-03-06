@@ -2,7 +2,7 @@
 from Core.Collector import Collector
 
 
-country = "Vietnam"
+country = "Japan"
 collector = Collector()
 # collector.selectCountry(country)
 # end_page = collector.getHowManyPages()
