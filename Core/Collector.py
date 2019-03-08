@@ -297,6 +297,15 @@ class Collector(object):
         except:
             logger.logger.debug("Move to " + option + " failed.")
 
+    def checkBadGateway(self):
+        if self.driver.find_element_by_tag_name("h1").text == "502 Bad Gateway":
+            self.driver.quit()
+            return True
+        else:
+            return False
+
+
+
     def getEachStockOneArrayDF(self, initURL):
 
         self.goEachStockInitPage(initURL)
@@ -344,11 +353,14 @@ class Collector(object):
         count_noelement = 0
         while True:
 
-            ### 여기서부터 코딩해야함 ###
+            ### already craweld passing and check badgateway error.
             r = df_screener.iloc[i, :]
             if r[-1] == True:
                 i += 1
                 continue
+            elif self.checkBadGateway(): #True -> badgatewayError
+                return False # whole process is not executed, but have to re-start the process
+
 
             logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
 
@@ -396,7 +408,7 @@ class Collector(object):
             # df길이에 i가 도달하면 break (전체 완료 하였음)
 
             if i == len_df_screener:
-                break
+                return True # End
             else:
                 if i % CONFIG.SAVE_LENGTH == 0:
                     df_screener.iloc[:i, -1] = True
