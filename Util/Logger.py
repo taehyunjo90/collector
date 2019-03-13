@@ -15,7 +15,7 @@ class myLogger():
         return ch
 
     def createFormatter(self):
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(processName)s - %(message)s')
         return formatter
 
 

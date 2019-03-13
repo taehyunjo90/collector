@@ -42,7 +42,12 @@ class Collector(object):
                 .until(EC.element_to_be_clickable((By.CLASS_NAME, "popupCloseIcon")))
             popup_quit_button.click()
         except:
-            return
+            try:
+                popup_quit_button = WebDriverWait(self.driver, wait_secs).until\
+                    (EC.element_to_be_clickable((By.CSS_SELECTOR, "i[class='popupCloseIcon largeBannerCloser']")))
+                popup_quit_button.click()
+            except:
+                return
 
         logger.logger.info("Popup cleared.")
         self.bool_popup_cleared = True
@@ -331,10 +336,10 @@ class Collector(object):
 
         return df
 
-    def crawlingStart(self, country):
+    def crawlingStart(self, country, process_num):
 
         # read screener
-        df_screener = self.readFile(country, "Screener")
+        df_screener = self.readFile(country, "Screener_" + str(process_num))
 
         # Screener Columns
         cols = ['Company Name', 'URL', 'Code', 'Market', 'Industry', \
@@ -346,8 +351,8 @@ class Collector(object):
 
         len_df_screener = len(df_screener.index)
 
-        df_total_not_bank = self.readFile(country, "NonFinancial")
-        df_total_bank = self.readFile(country, "Financial")
+        df_total_not_bank = self.readFile(country, "NonFinancial_" + str(process_num))
+        df_total_bank = self.readFile(country, "Financial_" + str(process_num))
 
         i = 0
         count_noelement = 0
@@ -360,7 +365,6 @@ class Collector(object):
                 continue
             elif self.checkBadGateway(): #True -> badgatewayError
                 return False # whole process is not executed, but have to re-start the process
-
 
             logger.logger.info( "Doing Crawling :: "+ str(i+1) + " / " + str(len_df_screener))
 
@@ -377,7 +381,7 @@ class Collector(object):
                 else:
                     continue
             except exceptions.WebDriverException:
-                logger.logger.info("Pop-up Error occured :: Try to click Pop-up.")
+                logger.logger.info("Pop-up Error occured :: Try to click Pop-up." )
                 self.clickPopUpQuit(WAIT_SECS)
                 logger.logger.info("Retry started...")
                 continue
@@ -405,25 +409,27 @@ class Collector(object):
 
 
             i += 1
+            count_noelement = 0
             # df길이에 i가 도달하면 break (전체 완료 하였음)
 
+
+            if i % CONFIG.SAVE_LENGTH == 0 or i == len_df_screener:
+                df_screener.iloc[:i, -1] = True
+                self.saveFile(country, df_screener, "Screener_" + str(process_num))
+
+                if df_total_not_bank is not None:
+                    df_total_not_bank.reset_index(drop=True, inplace=True)
+                    self.saveFile(country, df_total_not_bank, "NonFinancial_" + str(process_num))
+
+                if df_total_bank is not None:
+                    df_total_bank.reset_index(drop=True, inplace=True)
+                    self.saveFile(country, df_total_bank, "Financial_" + str(process_num))
+
             if i == len_df_screener:
-                return True # End
-            else:
-                if i % CONFIG.SAVE_LENGTH == 0:
-                    df_screener.iloc[:i, -1] = True
-                    self.saveFile(country, df_screener, "Screener")
+                return True
 
-                    if df_total_not_bank is not None:
-                        df_total_not_bank.reset_index(drop=True, inplace=True)
-                        self.saveFile(country, df_total_not_bank, "NonFinancial")
-
-                    if df_total_bank is not None:
-                        df_total_bank.reset_index(drop=True, inplace=True)
-                        self.saveFile(country, df_total_bank, "Financial")
-
-
-    def saveFile(self, country, df, type):
+    @classmethod
+    def saveFile(cls, country, df, type):
         # date = datetime.datetime.today().strftime('%Y-%m-%d')
         if df is not None:
             df.to_csv(CONFIG.PATH['SAVE'] + country + "_" + type + ".csv")
@@ -431,7 +437,8 @@ class Collector(object):
         elif df is None:
             return
 
-    def readFile(self, country, type):
+    @classmethod
+    def readFile(cls, country, type):
         # date = datetime.datetime.today().strftime('%Y-%m-%d')
 
         try:
