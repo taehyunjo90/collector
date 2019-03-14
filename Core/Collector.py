@@ -229,6 +229,7 @@ class Collector(object):
             if i == 0:
                 list_year_quater = []
                 year = ele.split(":")[-1]
+                year = year.replace(" ","")
             elif i < 8:
                 if i % 2 == 1:
                     count += 1
@@ -238,6 +239,8 @@ class Collector(object):
                     if i == 7:
                         contents.append(list_year_quater)
                         index = index + ["YYYY/DD/MM"]
+                else:
+                    year = ele
             else:
                 eles = ele.split(" ")
                 contents.append(eles[-4:])
