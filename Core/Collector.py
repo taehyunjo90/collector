@@ -454,7 +454,31 @@ class Collector(object):
 
         return df
 
-    def mergeDFs(self, df_total, df_new):
+    @classmethod
+    def mergeFiles(cls, country, type, num_process):
+
+        df_total = None
+        for i in range(num_process):
+            num = i + 1
+            df = cls.readFile(country, type + "_" +str(num))
+            if df is not None:
+                if df_total is None:
+                    df_total = df
+                else:
+                    df_total = cls.mergeDFs(df_total, df)
+
+
+        if df_total is None:
+            logger.logger.info("There is no files to merge.")
+        else:
+            df_total.reset_index(inplace=True, drop=True)
+            cls.saveFile(country, df_total, type + "_total")
+            logger.logger.info("Total files are merged successfully. :: type : {}".format(type) )
+
+
+
+    @classmethod
+    def mergeDFs(cls, df_total, df_new):
         # total_df은 index에 계정이 들어가 있음
         len_total_df = len(df_total.columns)
         len_new_df = len(df_new.columns)

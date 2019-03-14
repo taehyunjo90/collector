@@ -15,8 +15,12 @@ def run(country, option, num_processer = 4):
     elif option == "crawling":
         multiprocessCrwaling(country, num_processer)
 
+    elif option == "merge":
+        Collector.mergeFiles(country, "Financial", num_processer)
+        Collector.mergeFiles(country, "NonFinancial", num_processer)
+
     else:
-        print("please type :: python main.py 'country' 'option[screener, divide, crawling]' 'num_processor'")
+        print("please type :: python main.py 'country' 'option[screener, divide, crawling, merge]' 'num_processor'")
 
 if __name__ == "__main__":
     country = sys.argv[1]
