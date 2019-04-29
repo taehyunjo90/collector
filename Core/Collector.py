@@ -15,6 +15,8 @@ import datetime
 import CONFIG
 from Util.Logger import myLogger
 
+NUM_SCREENER_ONE_PAGE = 50
+
 WAIT_SECS = 5
 SHORT_WAIT_SECS = 1
 
@@ -28,7 +30,8 @@ class Collector(object):
     def __init__(self):
         # Variables
         self.bool_popup_cleared = False
-        self.driver = webdriver.Chrome(executable_path="Driver/chromedriver.exe")
+        # self.driver = webdriver.Chrome(executable_path="Driver/chromedriver.exe")
+        self.driver = webdriver.Chrome(executable_path="../Driver/chromedriver.exe")
         self.accessInitPage()
 
     def clickPopUpQuit(self, wait_secs):
@@ -136,8 +139,11 @@ class Collector(object):
 
         pagesource = self.driver.page_source
         souped_ps = BeautifulSoup(pagesource, 'lxml')
-        last_num = souped_ps.find_all("a", {"class" : "pagination"})[-1].text
-        last_num = int(last_num)
+        # last_num = souped_ps.find_all("a", {"class" : "pagination"})[-1].text
+        # last_num = int(last_num)
+
+        last_num = souped_ps.find_all("span", {"class" : "js-total-results"})[0].text
+        last_num = int(int(last_num)  / NUM_SCREENER_ONE_PAGE) + 1
 
         # Page Url
         self.setPageURL()
@@ -492,3 +498,9 @@ class Collector(object):
         return ret.T
 
 
+if __name__ == "__main__":
+    collector = Collector()
+    collector.selectCountry("Vietnam")
+    end_page = collector.getHowManyPages()
+
+    print(end_page)
