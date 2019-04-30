@@ -30,8 +30,8 @@ class Collector(object):
     def __init__(self):
         # Variables
         self.bool_popup_cleared = False
-        # self.driver = webdriver.Chrome(executable_path="Driver/chromedriver.exe")
-        self.driver = webdriver.Chrome(executable_path="../Driver/chromedriver.exe")
+        self.driver = webdriver.Chrome(executable_path="Driver/chromedriver.exe")
+        # self.driver = webdriver.Chrome(executable_path="../Driver/chromedriver.exe")
         self.accessInitPage()
 
     def clickPopUpQuit(self, wait_secs):
