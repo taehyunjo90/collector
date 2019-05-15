@@ -20,6 +20,8 @@ NUM_SCREENER_ONE_PAGE = 50
 WAIT_SECS = 5
 SHORT_WAIT_SECS = 1
 
+SLEEP_SECS = 10
+
 
 NON_BANK_FIANANCIAL_REPORTS_LENGTH = 753
 MAX_NOELEMENT_COUNT = 5
@@ -437,6 +439,8 @@ class Collector(object):
             if i == len_df_screener:
                 return True
 
+            time.sleep(SLEEP_SECS)
+
     @classmethod
     def saveFile(cls, country, df, type):
         # date = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -452,7 +456,7 @@ class Collector(object):
 
         try:
             df = pd.read_csv(CONFIG.PATH['SAVE'] + country + "_" + type + ".csv", \
-                             header=[0,1], index_col=0, encoding='cp949')
+                             header=[0,1], index_col=0, encoding='utf-8')
             logger.logger.info("Read :: " + country + " " + type + " is successfully readed.")
         except FileNotFoundError:
             logger.logger.info("Read :: There is no " + country + " " + type)
